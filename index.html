@@ -232,7 +232,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--ly);
 .potm-header{text-align:center;margin-bottom:40px;}
 .potm-title{font-size:11px;color:var(--ly);letter-spacing:4px;text-shadow:0 0 14px rgba(255,211,42,.5);}
 .potm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:24px;max-width:1400px;margin:0 auto;}
-.potm-month-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.potm-month-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;perspective:1000px;}
 .potm-month-label{font-size:7px;color:rgba(255,211,42,.7);letter-spacing:3px;text-align:center;}
 .potm-select{width:100%;padding:6px 8px;background:rgba(1,14,36,.9);border:2px solid rgba(255,211,42,.25);color:var(--lw);font-family:'VT323',monospace;font-size:15px;outline:none;cursor:pointer;letter-spacing:1px;-webkit-appearance:none;appearance:none;}
 .potm-select option{background:#021941;color:#fff;}
@@ -292,6 +292,26 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--ly);
 .badge-unlocked.epic{background:rgba(191,0,255,.1);border-color:#bf00ff;color:#df80ff;}
 .badge-unlocked.legendary{background:rgba(168,224,99,.12);border-color:#a8e063;color:#a8e063;}
 .hof-empty{font-family:'VT323',monospace;font-size:20px;color:rgba(255,255,255,.2);letter-spacing:2px;padding:30px 0;text-align:center;}
+/* BADGE PICKER */
+.badge-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.badge-opt{font-family:'VT323',monospace;font-size:14px;padding:5px 10px;border:2px solid rgba(255,211,42,.2);background:rgba(1,14,36,.6);color:rgba(255,255,255,.5);cursor:pointer;letter-spacing:1px;transition:all .15s;white-space:nowrap;}
+.badge-opt:hover{border-color:rgba(255,211,42,.5);color:var(--ly);}
+.badge-opt.selected{background:rgba(255,211,42,.15);border-color:var(--ly);color:var(--ly);}
+
+/* POTM FLIP */
+.potm-flipper{position:relative;width:100%;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.4,0,.2,1);cursor:pointer;}
+.potm-month-wrap.flipped .potm-flipper{transform:rotateY(180deg);}
+.potm-card-face{backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.potm-card-face.potm-back{position:absolute;top:0;left:0;width:100%;transform:rotateY(180deg);background:var(--lb);border:3px solid #a0a0a0;box-shadow:0 0 20px rgba(200,200,200,.3);padding:14px;min-height:100%;}
+.potm-back-title{font-size:7px;color:#aaa;letter-spacing:3px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.1);}
+.potm-back-shoutout{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.potm-back-shoutout:last-child{border-bottom:none;}
+.potm-shoutout-badge{font-family:'VT323',monospace;font-size:13px;color:var(--ly);display:inline-block;margin-bottom:2px;}
+.potm-shoutout-giver{font-size:5.5px;color:rgba(255,255,255,.4);letter-spacing:1.5px;}
+.potm-shoutout-reason{font-family:'VT323',monospace;font-size:15px;color:rgba(255,255,255,.7);letter-spacing:1px;line-height:1.4;margin-top:2px;}
+.potm-back-empty{font-family:'VT323',monospace;font-size:16px;color:rgba(255,255,255,.2);letter-spacing:1px;text-align:center;padding:20px 0;}
+.potm-back-hint{font-size:5px;color:rgba(255,255,255,.2);letter-spacing:2px;text-align:center;margin-top:10px;}
+
 .toast{position:fixed;bottom:28px;right:28px;background:var(--ly);color:var(--lb);font-family:'Press Start 2P',monospace;font-size:7px;letter-spacing:1px;padding:12px 18px;transform:translateY(80px);opacity:0;transition:all .3s;z-index:999;pointer-events:none;}
 .toast.show{transform:translateY(0);opacity:1;}
 </style>
@@ -314,7 +334,11 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--ly);
       <input class="modal-input" id="modal-giver" placeholder="e.g. Sarah" maxlength="30">
     </div>
     <div class="modal-field">
-      <label class="modal-label">REASON FOR SHOUTOUT</label>
+      <label class="modal-label">CHOOSE A BADGE</label>
+      <div class="badge-picker" id="badge-picker"></div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">ADD YOUR MESSAGE</label>
       <input class="modal-input" id="modal-reason" placeholder="e.g. Saved the client demo!" maxlength="80">
     </div>
     <div class="modal-actions">
@@ -391,9 +415,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;background:var(--ly);
       <button class="btn-sm danger" onclick="lockTools()">🔒 LOCK</button>
     </div>
     <div style="background:rgba(255,60,60,.06);border:2px solid rgba(255,100,100,.2);padding:18px;margin-bottom:32px;">
-      <div style="font-size:7px;color:#ff6b6b;letter-spacing:3px;margin-bottom:10px;">⚠ MONTH-END RESET</div>
-      <div style="font-family:'VT323',monospace;font-size:17px;color:rgba(255,255,255,.5);letter-spacing:1px;margin-bottom:14px;line-height:1.6;">Clear all power-ups at the end of each month so the leaderboard starts fresh. This cannot be undone.</div>
-      <button class="btn-sm danger" onclick="confirmResetPowerups()" style="width:auto;">↺ RESET ALL POWER-UPS</button>
+      <div style="font-size:7px;color:#ff6b6b;letter-spacing:3px;margin-bottom:10px;">⚠ CLOSE THE MONTH</div>
+      <div style="font-family:'VT323',monospace;font-size:17px;color:rgba(255,255,255,.5);letter-spacing:1px;margin-bottom:14px;line-height:1.6;">Archives this month's power-ups and POTM winner to the Hall of Fame, then resets the leaderboard for the new month.</div>
+      <button class="btn-sm danger" onclick="closeMonth()" style="width:auto;">↺ CLOSE MONTH &amp; RESET</button>
     </div>
     <div class="potm-grid" id="tools-potm-grid"></div>
   </div>
@@ -650,6 +674,17 @@ const FRAMEWORK=[
 ];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const POWERUP_BADGES=[
+  {id:'above',    label:'⚡ Above & Beyond'},
+  {id:'problem',  label:'🎯 Problem Solver'},
+  {id:'team',     label:'🤝 Team Player'},
+  {id:'comms',    label:'💬 Great Communicator'},
+  {id:'delivery', label:'🚀 Delivery Hero'},
+  {id:'people',   label:'🌱 People Developer'},
+  {id:'trail',    label:'🌟 Trailblazer'},
+  {id:'thanks',   label:'💛 Just to Say Thanks'},
+];
+
 // ── STATE ──
 let cards=[];
 let powerups={};
@@ -659,6 +694,8 @@ let activeFilter=null;
 let editingId=null;
 let pinUnlocked=false;
 let modalTargetId=null;
+let selectedBadge=null;
+let archive={};
 
 // ── API ──
 async function apiGet(action){
@@ -676,8 +713,8 @@ async function loadAll(){
     if(data.cards) cards=data.cards;
     if(data.powerups) powerups=data.powerups;
     if(data.potm) potm=data.potm;
+    if(data.archive) archive=data.archive;
   }catch(e){
-    // Fall back to localStorage if API fails
     try{
       const local=['ltt_v3','lumen_cards_v2','lumen_cards'].map(k=>{try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return[];}}).find(a=>a&&a.length);
       if(local) cards=local;
@@ -908,19 +945,31 @@ function renderGallery(){
 // ── POWER-UP MODAL ──
 function openModal(cardId,cardName){
   modalTargetId=cardId;
+  selectedBadge=null;
   document.getElementById('modal-target-name').textContent='FOR: '+cardName.toUpperCase();
   document.getElementById('modal-giver').value='';
   document.getElementById('modal-reason').value='';
+  // Build badge picker
+  const picker=document.getElementById('badge-picker');
+  picker.innerHTML=POWERUP_BADGES.map(b=>`<div class="badge-opt" data-id="${b.id}" onclick="selectBadge('${b.id}',this)">${b.label}</div>`).join('');
   document.getElementById('powerup-modal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('modal-giver').focus(),100);
+}
+function selectBadge(id, el){
+  selectedBadge=id;
+  document.querySelectorAll('.badge-opt').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
 }
 function closeModal(){document.getElementById('powerup-modal').classList.add('hidden');modalTargetId=null;}
 async function submitPowerUp(){
   const giver=document.getElementById('modal-giver').value.trim();
   const reason=document.getElementById('modal-reason').value.trim();
-  if(!giver||!reason){showToast('⚠ FILL IN BOTH FIELDS');return;}
+  if(!giver){showToast('⚠ ENTER YOUR NAME');return;}
+  if(!selectedBadge){showToast('⚠ CHOOSE A BADGE');return;}
+  if(!reason){showToast('⚠ ADD YOUR MESSAGE');return;}
+  const badge=POWERUP_BADGES.find(b=>b.id===selectedBadge);
   if(!powerups[modalTargetId]) powerups[modalTargetId]=[];
-  powerups[modalTargetId].push({giver,reason,ts:Date.now()});
+  powerups[modalTargetId].push({giver,badge:badge.label,reason,ts:Date.now()});
   closeModal();
   showLoading(true);
   await apiPost('savePowerups',powerups);
@@ -953,7 +1002,7 @@ function renderNominations(){
         <div class="nom-bar-label"><span>⚡ POWER-UPS</span><span>${pups.length}</span></div>
         <div class="nom-bar-track"><div class="nom-bar-fill" style="width:${Math.round((pups.length/allMax)*100)}%"></div></div>
       </div>
-      ${pups.length?`<div class="nom-shoutouts">${pups.slice().reverse().map(p=>`<div class="nom-shoutout"><strong>${p.giver}:</strong> ${p.reason}</div>`).join('')}</div>`:'<div style="font-family:VT323,monospace;font-size:15px;color:rgba(255,255,255,.2);letter-spacing:1px;padding:6px 0">NO SHOUTOUTS YET</div>'}
+      ${pups.length?`<div class="nom-shoutouts">${pups.slice().reverse().map(p=>`<div class="nom-shoutout">${p.badge?`<span style="color:var(--ly);display:block;font-size:13px;">${p.badge}</span>`:''}<strong>${p.giver}:</strong> ${p.reason}</div>`).join('')}</div>`:'<div style="font-family:VT323,monospace;font-size:15px;color:rgba(255,255,255,.2);letter-spacing:1px;padding:6px 0">NO SHOUTOUTS YET</div>'}
       <button class="nom-give-btn" onclick="openModal(${card.id},'${card.name.replace(/'/g,"\\'")}')">⚡ GIVE POWER-UP</button>`;
     grid.appendChild(d);
   });
@@ -971,7 +1020,7 @@ function renderPotm(){
     wrap.innerHTML=`
       <div class="potm-month-label">${month.toUpperCase()}</div>
       <div class="potm-card-outer">
-        ${selCard?buildShinyCard(selCard):'<div class="potm-empty-slot"><span>NOT YET<br>SELECTED</span></div>'}
+        ${selCard?buildShinyCard(selCard,month):'<div class="potm-empty-slot"><span>NOT YET<br>SELECTED</span></div>'}
       </div>`;
     grid.appendChild(wrap);
   });
@@ -999,13 +1048,39 @@ function renderTools(){
   }
 }
 
-async function confirmResetPowerups(){
-  if(!confirm('Reset ALL power-ups for every player? This clears the leaderboard and cannot be undone.')) return;
-  powerups={};
+async function closeMonth(){
+  const now=new Date();
+  const monthName=MONTHS[now.getMonth()];
+  const year=now.getFullYear();
+  const monthKey=`${year}-${String(now.getMonth()+1).padStart(2,'0')}`; // e.g. 2026-03
+  const label=`${monthName} ${year}`;
+
+  if(!confirm(`Close ${label}?\n\nThis will:\n✓ Archive all power-ups and the POTM winner\n✓ Reset the leaderboard for the new month\n\nThis cannot be undone.`)) return;
+
+  // Build snapshot of this month
+  const potmWinnerId=potm[monthName]?parseInt(potm[monthName]):null;
+  const potmWinner=potmWinnerId?cards.find(c=>c.id===potmWinnerId):null;
+  const snapshot={
+    label,
+    monthKey,
+    potmWinner: potmWinner?{id:potmWinner.id,name:potmWinner.name,role:potmWinner.role,avatar:potmWinner.avatar,cardno:potmWinner.cardno}:null,
+    powerups: JSON.parse(JSON.stringify(powerups)), // deep copy
+    topPlayers: [...cards].map(c=>({
+      id:c.id, name:c.name, role:c.role, avatar:c.avatar,
+      total:(powerups[c.id]||[]).length
+    })).sort((a,b)=>b.total-a.total).slice(0,5),
+    closedAt: now.toISOString(),
+  };
+
   showLoading(true);
-  await apiPost('savePowerups',powerups);
+  await fetch(API,{method:'POST',body:JSON.stringify({action:'closeMonth',monthKey,snapshot})});
+  // Update local state
+  archive[monthKey]=snapshot;
+  powerups={};
   showLoading(false);
-  showToast('✓ POWER-UPS RESET — NEW MONTH BEGINS!');
+  renderGallery();
+  if(document.getElementById('view-hof').classList.contains('active')) renderHof();
+  showToast(`✓ ${label.toUpperCase()} ARCHIVED — NEW MONTH BEGINS!`);
 }
 
 function lockTools(){
@@ -1037,7 +1112,7 @@ function buildToolsPotmGrid(){
       <div class="potm-month-label">${month.toUpperCase()}</div>
       <select class="potm-select" onchange="setPotm('${month}',this.value)">${opts}</select>
       <div class="potm-card-outer" id="potm-slot-${month}">
-        ${selCard?buildShinyCard(selCard):'<div class="potm-empty-slot"><span>NO PLAYER<br>SELECTED</span></div>'}
+        ${selCard?buildShinyCard(selCard,month):'<div class="potm-empty-slot"><span>NO PLAYER<br>SELECTED</span></div>'}
       </div>`;
     grid.appendChild(wrap);
   });
@@ -1049,14 +1124,38 @@ async function setPotm(month,val){
   showLoading(false);
   const card=val?cards.find(c=>c.id===parseInt(val)):null;
   const slot=document.getElementById(`potm-slot-${month}`);
-  if(slot) slot.innerHTML=card?buildShinyCard(card):'<div class="potm-empty-slot"><span>NO PLAYER<br>SELECTED</span></div>';
+  if(slot) slot.innerHTML=card?buildShinyCard(card,month):'<div class="potm-empty-slot"><span>NO PLAYER<br>SELECTED</span></div>';
   showToast('✓ SAVED');
 }
-function buildShinyCard(card){
+function buildShinyCard(card, month){
   const scores=card.scores||[];
   const avg=scores.length?(scores.reduce((a,s)=>a+s.score,0)/scores.length).toFixed(1):'0.0';
   const statsHtml=scores.map(s=>`<div class="c-stat"><div class="c-stat-top"><span class="c-stat-name">${s.label}</span><span class="c-stat-score">${s.score}/10</span></div><div class="c-bar-track"><div class="c-bar-fill ${s.barClass}" style="width:${s.score*10}%"></div></div></div>`).join('')+`<div class="c-overall"><span class="c-overall-label">OVERALL PWR</span><span class="c-overall-score">${avg}</span></div>`;
-  return`<div class="card shiny-card"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div><div class="c-header"><span class="c-series">★ PLAYER OF THE MONTH ★</span><span class="c-id">${card.cardno}</span></div><div class="c-photo"><div class="c-av">${avSvg(card.avatar||'energizer',70)}<span>${avName(card.avatar||'energizer')}</span></div></div><div class="c-nameplate"><div class="c-name">${card.name}</div><div class="c-role">${card.role||'&nbsp;'}</div><div class="c-sp-row"><span class="c-sp-label">⚡ SUPER POWER</span><span class="c-sp-val">${getSuperPower(card.scores)}</span></div></div><div class="c-stats">${statsHtml}</div><div class="c-footer"><span class="c-brand">LUMEN</span><span class="c-edition">DREAM TEAM 2026</span></div></div>`;
+  const pups=powerups[card.id]||[];
+  const pupsHtml=pups.length
+    ? pups.slice().reverse().map(p=>`<div class="potm-back-shoutout">
+        ${p.badge?`<div class="potm-shoutout-badge">${p.badge}</div>`:''}
+        <div class="potm-shoutout-giver">${p.giver}</div>
+        <div class="potm-shoutout-reason">${p.reason}</div>
+      </div>`).join('')
+    : `<div class="potm-back-empty">No shoutouts yet this month</div>`;
+  const monthLabel=month?month.toUpperCase():'';
+  const frontCard=`<div class="card shiny-card potm-card-face">
+    <div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div>
+    <div class="c-header"><span class="c-series">★ PLAYER OF THE MONTH ★</span><span class="c-id">${card.cardno}</span></div>
+    <div class="c-photo"><div class="c-av">${avSvg(card.avatar||'energizer',70)}<span>${avName(card.avatar||'energizer')}</span></div></div>
+    <div class="c-nameplate"><div class="c-name">${card.name}</div><div class="c-role">${card.role||'&nbsp;'}</div><div class="c-sp-row"><span class="c-sp-label">⚡ SUPER POWER</span><span class="c-sp-val">${getSuperPower(card.scores)}</span></div></div>
+    <div class="c-stats">${statsHtml}</div>
+    <div class="c-footer"><span class="c-brand">LUMEN</span><span class="c-edition">DREAM TEAM 2026</span></div>
+  </div>`;
+  const backCard=`<div class="potm-card-face potm-back" style="min-height:100%;">
+    <div class="corner corner-tl" style="border-color:#888;"></div><div class="corner corner-tr" style="border-color:#888;"></div>
+    <div class="corner corner-bl" style="border-color:#888;"></div><div class="corner corner-br" style="border-color:#888;"></div>
+    <div class="potm-back-title">⚡ WHY ${card.name.toUpperCase()} WON ${monthLabel}</div>
+    <div style="max-height:220px;overflow-y:auto;">${pupsHtml}</div>
+    <div class="potm-back-hint">▲ CLICK TO FLIP BACK</div>
+  </div>`;
+  return`<div class="potm-flipper" onclick="this.closest('.potm-month-wrap').classList.toggle('flipped')">${frontCard}${backCard}</div>`;
 }
 
 // ── EDIT / DELETE ──
@@ -1124,12 +1223,31 @@ const POTM_MILESTONES = [
 ];
 
 function getPotmWins(){
-  // Count how many times each card id appears in potm object
+  // Count from current potm assignments PLUS archived months
   const wins={};
-  Object.values(potm).forEach(id=>{
-    wins[id]=(wins[id]||0)+1;
+  // Current potm
+  Object.values(potm).forEach(id=>{wins[id]=(wins[id]||0)+1;});
+  // Archived months
+  Object.values(archive).forEach(snap=>{
+    if(snap.potmWinner) wins[snap.potmWinner.id]=(wins[snap.potmWinner.id]||0)+1;
   });
   return wins;
+}
+
+function getAllTimePowerups(){
+  // Sum current powerups + archived powerups per card id
+  const totals={};
+  // Current
+  Object.entries(powerups).forEach(([id,pups])=>{totals[id]=(totals[id]||0)+pups.length;});
+  // Archived
+  Object.values(archive).forEach(snap=>{
+    if(snap.powerups){
+      Object.entries(snap.powerups).forEach(([id,pups])=>{
+        totals[id]=(totals[id]||0)+(Array.isArray(pups)?pups.length:0);
+      });
+    }
+  });
+  return totals;
 }
 
 function renderBadges(value, milestones){
@@ -1142,46 +1260,67 @@ function renderBadges(value, milestones){
 function renderHof(){
   const el = document.getElementById('hof-content');
   const potmWins = getPotmWins();
+  const allTimePU = getAllTimePowerups();
 
-  // Sort cards by total powerups (all-time)
+  // Sort cards by all-time powerups
   const byPowerups = [...cards].map(c=>({
-    ...c,
-    total: (powerups[c.id]||[]).length
+    ...c, total: allTimePU[c.id]||0
   })).sort((a,b)=>b.total-a.total);
 
-  // Sort cards by POTM wins
+  // Sort cards by total POTM wins
   const byPotm = [...cards].map(c=>({
-    ...c,
-    wins: potmWins[c.id]||0
+    ...c, wins: potmWins[c.id]||0
   })).sort((a,b)=>b.wins-a.wins);
 
   function buildEntry(card, rank, stat, statLabel, milestones){
     const isFirst = rank===1;
-    const rankDisplay = isFirst ? '👑' : `#${rank}`;
     return `<div class="hof-entry ${isFirst?'hof-first':''}">
       <div>
-        <div class="hof-rank">${rankDisplay}</div>
-        ${!isFirst?`<div class="hof-rank-num">#${rank}</div>`:''}
+        <div class="hof-rank">${isFirst?'👑':`#${rank}`}</div>
       </div>
       <div style="margin-right:10px;">${avSvg(card.avatar||'energizer',isFirst?52:40)}</div>
       <div class="hof-info">
         <div class="hof-name ${isFirst?'champion':''}">${card.name}</div>
         <div class="hof-role">${card.role||'&nbsp;'}</div>
-        <div>
-          <span class="hof-stat">${stat}</span>
-          <span class="hof-stat-label">${statLabel}</span>
-        </div>
+        <div><span class="hof-stat">${stat}</span><span class="hof-stat-label">${statLabel}</span></div>
         <div class="hof-badges">${renderBadges(stat, milestones)}</div>
       </div>
     </div>`;
   }
+
+  // Build monthly history from archive
+  const archiveKeys=Object.keys(archive).sort().reverse();
+  const historyHtml=archiveKeys.length ? archiveKeys.map(key=>{
+    const snap=archive[key];
+    const winner=snap.potmWinner;
+    const topPU=snap.topPlayers&&snap.topPlayers[0];
+    return `<div class="hof-entry" style="margin-bottom:8px;">
+      <div style="min-width:80px;">
+        <div style="font-family:'VT323',monospace;font-size:15px;color:var(--ly);letter-spacing:1px;">${snap.label}</div>
+      </div>
+      <div class="hof-info" style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:5px;color:rgba(255,211,42,.5);letter-spacing:2px;margin-bottom:3px;">🏆 POTM</div>
+          ${winner
+            ? `<div style="display:flex;align-items:center;gap:6px;">${avSvg(winner.avatar||'energizer',28)}<span style="font-size:7px;color:var(--lw);">${winner.name}</span></div>`
+            : `<span style="font-family:'VT323',monospace;font-size:14px;color:rgba(255,255,255,.2);">NOT SET</span>`}
+        </div>
+        <div>
+          <div style="font-size:5px;color:rgba(255,211,42,.5);letter-spacing:2px;margin-bottom:3px;">⚡ TOP POWER-UP</div>
+          ${topPU&&topPU.total>0
+            ? `<div style="display:flex;align-items:center;gap:6px;">${avSvg(topPU.avatar||'energizer',28)}<span style="font-size:7px;color:var(--lw);">${topPU.name} <span style="color:var(--ly);">(${topPU.total})</span></span></div>`
+            : `<span style="font-family:'VT323',monospace;font-size:14px;color:rgba(255,255,255,.2);">NONE</span>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('') : `<div class="hof-empty">NO ARCHIVED MONTHS YET — CLOSE YOUR FIRST MONTH TO START THE RECORD</div>`;
 
   if(!cards.length){
     el.innerHTML=`<div class="hof-header"><div class="hof-title">★ HALL OF FAME ★</div></div><div class="hof-empty">NO PLAYERS YET. ADD CARDS IN THE EDITOR.</div>`;
     return;
   }
 
-  const puRows = byPowerups.map((c,i)=>buildEntry(c, i+1, c.total, 'POWER-UPS ALL TIME', POWERUP_MILESTONES)).join('');
+  const puRows = byPowerups.map((c,i)=>buildEntry(c, i+1, c.total, 'ALL-TIME POWER-UPS', POWERUP_MILESTONES)).join('');
   const potmRows = byPotm.map((c,i)=>buildEntry(c, i+1, c.wins, 'PLAYER OF THE MONTH WINS', POTM_MILESTONES)).join('');
 
   el.innerHTML=`
@@ -1191,13 +1330,17 @@ function renderHof(){
     </div>
     <div class="hof-sections">
       <div>
-        <div class="hof-section-title">⚡ POWER-UP RANKINGS</div>
+        <div class="hof-section-title">⚡ ALL-TIME POWER-UP RANKINGS</div>
         ${puRows||'<div class="hof-empty">NO POWER-UPS YET</div>'}
       </div>
       <div>
-        <div class="hof-section-title">🏆 PLAYER OF THE MONTH RANKINGS</div>
+        <div class="hof-section-title">🏆 PLAYER OF THE MONTH WINS</div>
         ${potmRows||'<div class="hof-empty">NO WINNERS YET</div>'}
       </div>
+    </div>
+    <div style="margin-top:36px;">
+      <div class="hof-section-title" style="max-width:1100px;">📅 MONTHLY HISTORY</div>
+      <div style="max-width:1100px;">${historyHtml}</div>
     </div>`;
 }
 
